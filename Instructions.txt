@@ -1,0 +1,321 @@
+  How to do a Neural Net training demo on the Jetson Nano
+  
+
+This article refers to hardware and software released and trademarked 
+by NVIDIA (also referred to as NVidia), including Jetson and Tegra.
+Ubuntu is a trademark of Canonical.  Linux is also trademarked
+but is in common usage.  Raspberry Pi is trademarked by the
+Raspberry Pi Foundation.  If Jetson Nano is not yet trademarked
+by NVIDIA, it may be by the time you read this.  For legal information
+on the website JetsonHacks, please start at www.jetsonhacks.com.
+If some other trademarks used here are missing, or other corrections
+are needed, please comment to have this document updated.
+
+----Disclaimer
+
+This information is made publicly avaiable so that others can avoid some
+of the challenges I encountered.  Use this information at your own risk.
+Sheperd Systems hopes it will be useful, but assumes no responsibility
+for outcomes from your use of the information.
+
+----Overview
+
+NVidia has put out a piece of hardware which has many DIY-ers
+excited.  The Jetson Nano Developer Kit is available at a nice
+pricepoint and has enough processing power to do some serious
+computations regarding machine learning.  For some writeups
+containing specifications and other details, see 
+
+https://developer.nvidia.com/embedded/learn/get-started-jetson-nano-devkit
+
+and
+
+https://www.jetsonhacks.com/2019/03/25/nvidia-jetson-nano-developer-kit/
+
+among others.
+
+
+This guide will parallel the Nvidia developer guide at
+
+https://github.com/dusty-nv/jetson-inference/blob/master/README.md#hello-ai-world
+
+but will contain a different perspective, and help you
+overcome some obstacles you may encounter during the process.
+This also has some wisdom that may help you anticipate and
+avoid some problems.
+
+So what are you going to do?
+
+1. You will do an initial setup of a Jetson Nano.
+
+2. You will download data and software to build and run
+various demos showing some of the capabilities of the Nano.
+
+3. You will attach a camera, and use that to run some of the
+demonstrations.  These demonstrations show how to retrain a
+construct called a neural network (NN) to perform chores like
+classification and detection.  The demonstrations will have
+these NNs do detection and classification both from sample
+images provided, and from a feed taken from a camera.
+
+Once you see the potential indicated by these demonstrations,
+you will have at your fingertips the capability to build,
+train, and retrain an NN to do the kind of machine learning
+you need.  The examples here will focus on images and videos,
+but machine learning can be deployed to assist in detection and
+recognition of other constructs, such as behaviour patterns or
+trends in other systems.
+
+
+----Some things I wish I had known
+
+Setting this up does not require Linux administration experience,
+but it helps.  It also does not require knowing much about machine
+learning, but knowing what is involved is useful.  I don't have a degree
+in electrical engineering, but I know enough to share with you
+to help you avoid some problems. In brief, these things are: use sudo,
+do apt-get update first, run tegrastats for temperature info, know that
+there is more than one thing called imagenet-console, 
+and use   nvpmodel - m 1  to run in 5W mode.
+
+You will be loading a customized version of a Linux operating system
+(Ubuntu 18.04) and then adding software packages to it.  Part of this
+system is built to take advantage of the processor cores (128 of them
+in the GPU) to do much of the computation in the NN training.  This means 
+the hardware will get hot.  If it gets too hot, it will shutdown in the
+middle of operating.
+
+What is involved in making a neural net that can tell a (picture of a)
+cat apart from a dog?  One feeds lots of images of cats and dogs to 
+a computer program, and adjusts characteristics of an NN to have the NN
+output one value when given input a picture of a cat, and a different one
+when given a picture of a dog as input.  To make a decent attempt at a model,
+one needs the software, lots of images to train, and some to test.  Since
+the program needs to take several passes over the images to "improve" the NN,
+it helps to have many processors speed up the computations.  However, if the
+processors are run too fast, they overheat.  Fortunately, there is a setting
+to prevent this.  The command is: nvpmodel -m 1 , which switches the hardware
+to run as if 5W of power were being supplied.
+
+So how much power, and how many pictures?  In addition to running the Nano,
+you will attach a camera as a peripheral.  The example here will be a
+Rasbperry Pi camera V2.  I will call it a picam in this article.  Check some
+of the articles under
+
+https://www.jetsonhacks.com/category/jetson-nano/
+
+for some camera alternatives not discussed here.
+
+
+----Hardware setup
+
+You will need a Jetson Nano Developer Kit, a power supply, a picam,
+a USB mouse, a USB keyboard, a microSD card (64 GB recommended), a
+network connection to the Internet that allows you to use Ethernet,
+and a monitor with cable for the display (this article assumes an
+HDMI cable, check other sources for DVI or alternatives).
+
+It is possible to use other peripherals and addons, like a wireless
+network card, or powering the Nano through the microUSB port. These
+are not discussed here.  THe power supply is a 5V 4W supply that uses
+the barrel jack connector available on the Nano.
+
+THere are various articles and videos that detail the setup of the
+hardware and the initial run.  I review the basic outline here, and
+refer you to JetsonHacks.com for one of many videos with the details.
+
+1.  Using an available laptop on the Internet, find and download the
+image of the OS for the nano.  Then use software such as Balena etcher
+to transfer the image onto the microSD card.  Although you can run on
+smaller size cards, for doing some of the training it helps to have
+a 64 GB card.
+
+2. Attach keyboard, mouse, and monitor. If you are using the recommended
+barrel jack, then attach the jumper.  For details, see
+
+https://www.jetsonhacks.com/2019/04/10/jetson-nano-use-more-power/
+
+Then attach power. There is no power switch on the Nano. 
+(Ethernet and camera come later.)
+
+3. Assuming the hardware powers up, do the basic configuration steps
+to add a user account and password for Linux, and some other steps.
+
+4. After checking out the basics of the system and desktop, open
+a terminal window to do command line.  At this time, you can plug in
+the Ethernet cable.
+
+5.  When you have networking, prepare to download packages.  This
+involves running the command: sudo apt-get update  .  THen bring
+up a browser window that has the online instructions for doing
+the demo  Hello AI World, at 
+
+https://github.com/dusty-nv/jetson-inference/blob/master/docs/building-repo-2.md
+
+(The picam install and nvpmodel command come later.)
+
+
+
+----Software setup
+
+Most of the instructions of Hello AI World! work as advertised,
+once you have networking and done (sudo apt-get update) first.
+This was the series of commands I used.
+
+sudo apt-get update
+   (Make sure you did this step before doing the rest.)
+
+sudo apt-get install git cmake
+git clone https://github.com/dusty-nv/jetson-inference
+cd jetson-inference
+git submodule update --init
+sudo apt-get install libpython3-dev python3-numpy
+  (This step is long, and required a restart of ssh service.
+   Be patient, and you will be able to run the pytorch retraining demo
+   later with this.)
+mkdir build
+cd build
+cmake ../
+  (this step took a while, and downloaded some models and installed
+   pytorch.  Again, be patient.)
+  (Below I included the prompt nano:~/jetson-inference/build$ to
+   remind you that the working directory is not the original home directory.)
+nano:~/jetson-inference/build$ make
+nano:~/jetson-inference/build$ sudo make install
+
+
+At this point, you are ready to go through and run through the simpler demos.
+The examples involving coding your own image recognition program
+
+https://github.com/dusty-nv/jetson-inference/blob/master/docs/imagenet-example-2.md
+
+and
+
+https://github.com/dusty-nv/jetson-inference/blob/master/docs/imagenet-example-python-2.md
+
+are straightforward and will not be covered here. Just make sure you copy the
+sample source code carefully before you build it as instructed.
+
+
+
+----Preparing to run the training and camera demos
+
+
+Most of the detection and classification demos can be run quickly,
+with the default configuration. Also, proof-of-concept can be demonstrated
+without using the camera.  However, running the camera is fun, and running the
+pytorch retraining demo needs a lot (but not too much) of compute power. So
+we include steps here to prepare for running those demos as well.
+
+1. Shutdown the nano. Unplug the power cable.
+
+2. Attach the camera.  (JetsonHacks has you covered, see
+
+https://www.jetsonhacks.com/2019/04/02/jetson-nano-raspberry-pi-camera/
+
+for details. be sure the connector lead side is closer to the heat sink)
+
+3. Power up the nano by plugging in the power cable.
+
+4. Log in and bring up a terminal window
+
+5. Change power mode. (details below)
+
+6. Set up swap file. (details below)
+
+In running the training demos, the system I used powered itself off.
+A workaround for this was to run the system in power mode 1 (5W)
+instead of the default mode 0 (10W).  You still want a good power supply
+to help with powering the camera and later peripherals, but you risk
+overheating the processor module at power mode 0. To fix this, do
+
+sudo nvpmodel -m 1
+
+To set up a swap file (as training reuires a lot of RAM), I follow 
+some of the script at 
+
+https://github.com/dusty-nv/jetson-inference/blob/master/docs/pytorch-transfer-learning.md
+
+and I reproduce the console session below when I did the commands.  Note
+the last commands show the extra line I added to the end of the fstab file.
+
+nano:~$ sudo fallocate -l 4G /mnt/4GB.swap
+[sudo] password for nano: 
+nano:~$ sudo mkswap /mnt/4GB.swap
+mkswap: /mnt/4GB.swap: insecure permissions 0644, 0600 suggested.
+Setting up swapspace version 1, size = 4 GiB (4294963200 bytes)
+no label, UUID=da040ea4-a586-4084-b8be-01f69a5cdcd2
+nano:~$ sudo swapon /mnt/4GB.swap
+swapon: /mnt/4GB.swap: insecure permissions 0644, 0600 suggested.
+
+nano:~$ sudo cp /etc/fstab /etc/fstab.orig
+nano:~$ sudo vi /etc/fstab
+nano:~$ diff /etc/fstab /etc/fstab.orig 
+17d16
+< /mnt/4GB.swap  none     swap  sw  0   0
+nano:~$ 
+
+
+----Now the good stuff
+
+
+Now you can run the scripts provided.
+
+Note: I still have not debugged imagenet-console.py version.  Probably
+you just need to fix an environment variable if you want to do the
+python version of some of the demos.
+
+The scripts at
+https://github.com/dusty-nv/jetson-inference/blob/master/docs/imagenet-console-2.md
+https://github.com/dusty-nv/jetson-inference/blob/master/docs/imagenet-camera-2.md
+https://github.com/dusty-nv/jetson-inference/blob/master/docs/detectnet-console-2.md
+https://github.com/dusty-nv/jetson-inference/blob/master/docs/detectnet-camera-2.md
+https://github.com/dusty-nv/jetson-inference/blob/master/docs/pytorch-cat-dog.md
+https://github.com/dusty-nv/jetson-inference/blob/master/docs/pytorch-plants.md
+
+should work as advertised, except that you need to make sure the right command is
+run. (There is more than one version of imagenet-console and imagenet-camera;
+you want to run the one you built.)  Here are some sample commands I ran to
+make things work  (NOT A COMPLETE SERIES: LOOK AT THE SCRIPT! 
+A complete series for plants is given later.):
+
+(After making a datasets directory and downloading images...)
+nano:~$ cd jetson-inference/python/training/imagenet
+nano:~/jetson-inference/python/training/imagenet$ python train.py --model-dir=cat_dog ~/datasets/cat_dog
+
+(After running the export command python onnx_export.py on the cat dog model directory...)
+(I am running my build of imagenet-console, not the default one.)
+DATASET=~/datasets/cat_dog
+nano:~/jetson-inference/python/training/imagenet$ ../../../build/aarch64/bin/imagenet-console --model=cat_dog/resnet18.onnx --input_blob=input_0 --output_blob=output_0 -labels=$DATASET/labels.txt $DATASET/test/cat/01.jpg myoutputcat.jpg
+
+(Now with the camera)
+nano:~/jetson-inference/python/training/imagenet$ DATASET=~/datasets/cat_dog
+nano:~/jetson-inference/python/training/imagenet$ ../../../build/aarch64/bin/imagenet-camera --model=cat_dog/resnet18.onnx --input_blob=input_0 --output_blob=output_0 --labels=$DATASET/labels.txt
+
+
+Here is a complete series of commands for the plant retraining demo:
+
+$ cd ~/datasets
+$ wget https://nvidia.box.com/shared/static/vbsywpw5iqy7r38j78xs0ctalg7jrg79.gz -O PlantCLEF_Subset.tar.gz
+$ tar xvzf PlantCLEF_Subset.tar.gz
+$ cd jetson-inference/python/training/imagenet
+$ python train.py --model-dir=plants ~/datasets/PlantCLEF_Subset
+   (This command took about 12 hours.)
+$ python onnx_export.py --model-dir=plants
+$ DATASET=~/datasets/PlantCLEF_Subset
+$ ../../../build/aarch64/bin/imagenet-camera --model=plants/resnet18.onnx --input_blob=input_0 --output_blob=output_0 --labels=$DATASET/labels.txt
+
+
+
+----One more thing
+
+If you want, you can run tegrastats to dump information to a file.
+I did tegrastats --interval 10000 --logfile mylog
+in another terminal window to track temperature stats every ten seconds
+while doing the plant retraining demo. 
+
+
+
+
+Copyright 2019 Sheperd Systems.  View LICENSE in repository for
+terms and conditions.  Version github1.0 2019.08.06.
